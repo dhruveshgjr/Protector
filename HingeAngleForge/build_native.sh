@@ -13,7 +13,6 @@ CONTENTS="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS/MacOS"
 RESOURCES_DIR="$CONTENTS/Resources"
 
-# Detect architecture
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
     TARGET="arm64-apple-macos12.0"
@@ -26,20 +25,19 @@ else
     exit 1
 fi
 
-# Clean
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 echo "📦 Bundle structure created"
 
-# Copy Info.plist
 cp "$SRC_DIR/Info.plist" "$CONTENTS/Info.plist"
 echo "📋 Info.plist injected"
 
-# Compile Swift
 echo "⚙️  Compiling Swift sources (swiftc -O)..."
 swiftc -O -whole-module-optimization \
     -target "$TARGET" \
     -framework SwiftUI -framework Combine -framework IOKit \
+    -framework CoreMIDI -framework AVFoundation -framework Accelerate \
+    "$SRC_DIR/ThereminEngine.swift" \
     "$SRC_DIR/LidAngleMonitor.swift" \
     "$SRC_DIR/ContentView.swift" \
     "$SRC_DIR/HingeAngleApp.swift" \
@@ -47,14 +45,12 @@ swiftc -O -whole-module-optimization \
 
 echo "✅ Compilation successful"
 
-# Codesign
 echo "✍️  Codesigning with entitlements..."
 codesign --force --deep --sign - \
     --entitlements "$SRC_DIR/App.entitlements" \
     --options runtime \
     "$APP_BUNDLE"
 
-# Verify
 echo "🔍 Verifying signature..."
 codesign --verify --verbose "$APP_BUNDLE" 2>&1
 
@@ -62,5 +58,7 @@ echo "────────────────────────�
 echo "✅ BUILD COMPLETE: $APP_BUNDLE"
 echo "🚀 Launch: open $APP_BUNDLE"
 echo ""
-echo "⚠️  First launch: Grant Input Monitoring in"
-echo "   System Settings > Privacy & Security > Input Monitoring"
+echo "⚠️  First launch: Grant permissions in"
+echo "   System Settings > Privacy & Security:"
+echo "  • Input Monitoring"
+echo "  • Microphone (for audio output)"
